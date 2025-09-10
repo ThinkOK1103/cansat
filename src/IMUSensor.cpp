@@ -14,13 +14,13 @@ void IMUSensor::begin() {
 
 void IMUSensor::initMPU6050() {
     if (!_mpu.begin()) {
-        Serial.println("MPU6050が見つかりません!");
+        Serial.println("MPU6050 not found");
         while (1);
     }
     _mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
     _mpu.setGyroRange(MPU6050_RANGE_250_DEG);
     _mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-    Serial.println("MPU6050初期化完了");
+    Serial.println("MPU6050 initialized");
     delay(100);
 }
 
@@ -31,11 +31,11 @@ void IMUSensor::initLIS3MDL() {
     Wire.requestFrom(LIS3MDL_ADDR, 1);
     if (Wire.available()) {
         if (Wire.read() != 0x3D) {
-            Serial.println("LIS3MDLが見つかりません!");
+            Serial.println("LIS3MDL not found");
             while (1);
         }
     } else {
-        Serial.println("LIS3MDL通信エラー!");
+        Serial.println("LIS3MDL error");
         while (1);
     }
     // 制御レジスタ設定
@@ -47,7 +47,7 @@ void IMUSensor::initLIS3MDL() {
     Wire.write(0x22); Wire.write(0x00); Wire.endTransmission();       // CTRL_REG3
     Wire.beginTransmission(LIS3MDL_ADDR);
     Wire.write(0x23); Wire.write(0b00001100); Wire.endTransmission(); // CTRL_REG4
-    Serial.println("LIS3MDL初期化完了");
+    Serial.println("LIS3MDL initialized");
     delay(100);
 }
 

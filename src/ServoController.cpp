@@ -18,7 +18,7 @@ void ServoController::begin(int neutralRight, int neutralLeft,
 
     _servoRight.write(_neutralRight);
     _servoLeft.write(_neutralLeft);
-    Serial.println("サーボ初期化完了");
+    Serial.println("servoController initialized");
     delay(100);
 }
 

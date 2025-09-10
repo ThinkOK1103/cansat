@@ -33,7 +33,7 @@ void BarometerSensor::initLPS331AP() {
             _pressureBuffer[i] = initPressure;
         }
     }
-    Serial.println("LPS331AP気圧センサ初期化完了");
+    Serial.println("LPS331AP initialized");
 }
 
 void BarometerSensor::readLPS331AP() {

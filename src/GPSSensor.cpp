@@ -7,7 +7,7 @@ GPSSensor::GPSSensor(uint8_t rxPin, uint8_t txPin) : _serial(rxPin, txPin) {
 
 void GPSSensor::begin(long baudRate) {
     _serial.begin(baudRate);
-    Serial.println("GPSモジュール初期化完了");
+    Serial.println("GPS sensor initialized");
 }
 
 void GPSSensor::update() {
