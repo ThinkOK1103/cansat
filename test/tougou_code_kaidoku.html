@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>tougou_code_kaidoku.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="%E7%B5%B1%E5%90%88%E3%82%B3%E3%83%BC%E3%83%89%E8%A7%A3%E8%AA%AD">統合コード解読</h1>
+<h2 id="servo15%E8%A1%8C%E7%9B%AE">Servo(15行目)</h2>
+<p>Servoは一言でいうとArduinoのサーボモータ制御用ライブラリのクラスの名前
+<br>Servoクラスとは、#include&lt;Servo.h&gt;に含まれるクラスである</br></p>
+<details>
+<summary>classについて詳しく</summary>
+<p>変数や関数をまとめて管理するもの
+以下は例(あくまで例)</p>
+<pre class="hljs"><code><div>class Servo //クラスの宣言 class class名
+{  
+    void set_PIN(int a){
+        pin = a;
+    }
+    //ここからは適当な関数や変数
+    bool move(double x){
+        //ここでx度動かすプログラム
+    }
+}
+int main(){//多分ここはvoid loop()
+    Servo servoL,servoR;    //Servoをインスタンス化(クラスから作ったものを実体にする)
+
+    const int PIN_L = 9;    //PIN番号を宣言
+    const int PIN_R = 10;
+
+    servoL.set_PIN(PIN_L);  //PIN番号を上のset_PIN関数に入れる
+    servoL.set_PIN(PIN_R);
+
+    servoL.move(100);       //leftを100度動かす
+    return 0;
+}
+</div></code></pre>
+</details>
+<p>MadgwickとTinyGPSPlusも同じ仕様</p>
+<h2 id="acclsbperg-and-gyrolsbdps3031%E8%A1%8C%E7%9B%AE">ACC_LSB_PER_G and GYRO_LSB_DPS(30,31行目)</h2>
+<ul>
+<li>ACC_LSB_PER_G
+加速度センサの1G（重力加速度）あたりのデータ値（LSB）
+例：生データが16384なら、加速度は1G</li>
+<li>GYRO_LSB_DPS
+ジャイロセンサの1度/秒（dps）あたりのデータ値（LSB）
+例：生データが131なら、角速度は1dps</li>
+</ul>
+<details>
+<summary>LSB</summary>
+<p>Least Significant Bit「最下位ビット」
+デジタル変換された値の最小単位</p>
+</details>
+<h2 id="i2c-utils5258%E8%A1%8C%E7%9B%AE">I2C utils(52~58行目)</h2>
+<ul>
+<li>i2cWrite8
+指定したI2Cアドレスのデバイスの指定したレジスタに値を書き込む
+センサの設定、初期化時に使用</li>
+<li>i2cBurstRead
+指定したI2Cアドレスのデバイスの指定した開始レジスタからlenバイト分のデータをまとめて読み込みbuf配列に格納
+センサの計測データ（複数バイト）を一度に取得する時に使用</li>
+</ul>
+<h2 id="mpu9250init6169">MPU9250_init(61~69)</h2>
+<p>大雑把に説明するとノイズや、安定性を求めた調整し、初期化する</p>
+<details>
+<summary>MPU9250_init()の各設定値（10進数表記）と役割</summary>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">mpu9250_init</span><span class="hljs-params">()</span></span>{
+  i2cWrite8(MPU_ADDR, <span class="hljs-number">107</span>, <span class="hljs-number">128</span>); delay(<span class="hljs-number">100</span>);   <span class="hljs-comment">// Reset</span>
+  i2cWrite8(MPU_ADDR, <span class="hljs-number">107</span>, <span class="hljs-number">1</span>);                 <span class="hljs-comment">// PLL(X-gyro)</span>
+  i2cWrite8(MPU_ADDR, <span class="hljs-number">26</span>, <span class="hljs-number">3</span>);                  <span class="hljs-comment">// CONFIG (DLPF)</span>
+  i2cWrite8(MPU_ADDR, <span class="hljs-number">27</span>, <span class="hljs-number">0</span>);                  <span class="hljs-comment">// GYRO ±250 dps</span>
+  i2cWrite8(MPU_ADDR, <span class="hljs-number">28</span>, <span class="hljs-number">0</span>);                  <span class="hljs-comment">// ACC  ±2 g</span>
+  i2cWrite8(MPU_ADDR, <span class="hljs-number">29</span>, <span class="hljs-number">3</span>);                  <span class="hljs-comment">// ACCEL_CONFIG2 (DLPF)</span>
+  i2cWrite8(MPU_ADDR, <span class="hljs-number">25</span>, <span class="hljs-number">9</span>);                  <span class="hljs-comment">// SMPLRT_DIV→100 Hz</span>
+}
+</div></code></pre>
+<ul>
+<li>
+<p><code>i2cWrite8(MPU_ADDR, 107, 128);</code><br>
+MPU9250の電源管理レジスタ（PWR_MGMT_1）に128を書き込むことで、センサをリセットする。</p>
+</li>
+<li>
+<p><code>i2cWrite8(MPU_ADDR, 107, 1);</code><br>
+クロックソースをX軸ジャイロに設定することで、センサの動作が安定する。</p>
+</li>
+<li>
+<p><code>i2cWrite8(MPU_ADDR, 26, 3);</code><br>
+デジタル・ローパス・フィルタ（DLPF）を有効にし、ノイズを減らして信号を滑らかにする。値3は帯域幅44Hzである。</p>
+</li>
+<li>
+<p><code>i2cWrite8(MPU_ADDR, 27, 0);</code><br>
+ジャイロの感度を±250度/秒に設定し、精度の高い角速度データを取得する。</p>
+</li>
+<li>
+<p><code>i2cWrite8(MPU_ADDR, 28, 0);</code><br>
+加速度センサの感度を±2gに設定し、精度の高い加速度データを取得する。</p>
+</li>
+<li>
+<p><code>i2cWrite8(MPU_ADDR, 29, 3);</code><br>
+加速度センサにもローパスフィルタをかけてノイズを減らす。値3は帯域幅44Hzである。</p>
+</li>
+<li>
+<p><code>i2cWrite8(MPU_ADDR, 25, 9);</code><br>
+サンプリングレートを100Hzに設定する。1kHz/(1+9)=100Hzとなり、十分なデータ更新頻度を確保できる。</p>
+</li>
+</ul>
+</details>
+<details>
+<summary>MPU9250の各設定項目の詳細</summary>
+<ol>
+<li>
+<p>クロックソース（107,1）</p>
+<p>クロックソースとは、センサ内部の動作タイミングを決める基準信号である。MPU9250では、外部クロックやジャイロの出力をクロック源にできる。X軸ジャイロを選ぶことで、センサ全体の動作が安定し、ノイズや誤動作が減る。</p>
+</li>
+<li>
+<p>DLPF（デジタル・ローパス・フィルタ）（26,3 と 29,3）</p>
+<p>DLPFは高周波ノイズ（細かい揺れや電気的な雑音）を除去し、信号を滑らかにするフィルタである。値3は帯域幅44Hz（±3dB）を意味し、これより高い周波数のノイズはカットされる。加速度・ジャイロ両方にDLPFを設定することで、ノイズ対策を強化している。</p>
+</li>
+<li>
+<p>サンプリングレート（25,9）</p>
+<p>サンプリングレートとは、1秒間に何回データを取得するか（更新頻度）を示す。MPU9250の基本レートは1kHzであり、SMPLRT_DIVレジスタの値が9なら、サンプリング周期は1kHz/(1+9)=100Hzとなる。100HzはロボットやCanSatの動きには十分な速さであり、データ量も多すぎず扱いやすい値である。</p>
+</li>
+<li>
+<p>感度設定（27,0 と 28,0）</p>
+<p>ジャイロ感度±250dps（27,0）は角速度の分解能が最も高くなり、細かい回転も検出できる。加速度感度±2g（28,0）は加速度の分解能が最も高くなり、細かい動きも検出できる。</p>
+</li>
+</ol>
+<p>これらの設定は、高精度・安定動作・ノイズ低減・リアルタイム性を両立するためのものである。</p>
+</details>
+<details>
+<summary>MPU9250_read_raw()の各処理と役割</summary>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">mpu9250_read_raw</span><span class="hljs-params">(<span class="hljs-keyword">int16_t</span>&amp; ax,<span class="hljs-keyword">int16_t</span>&amp; ay,<span class="hljs-keyword">int16_t</span>&amp; az,
+                      <span class="hljs-keyword">int16_t</span>&amp; gx,<span class="hljs-keyword">int16_t</span>&amp; gy,<span class="hljs-keyword">int16_t</span>&amp; gz)</span></span>{
+  <span class="hljs-keyword">uint8_t</span> b[<span class="hljs-number">14</span>];
+  i2cBurstRead(MPU_ADDR, <span class="hljs-number">0x3B</span>, b, <span class="hljs-number">14</span>);
+  ax=(<span class="hljs-keyword">int16_t</span>)((b[<span class="hljs-number">0</span>]&lt;&lt;<span class="hljs-number">8</span>)|b[<span class="hljs-number">1</span>]);
+  ay=(<span class="hljs-keyword">int16_t</span>)((b[<span class="hljs-number">2</span>]&lt;&lt;<span class="hljs-number">8</span>)|b[<span class="hljs-number">3</span>]);
+  az=(<span class="hljs-keyword">int16_t</span>)((b[<span class="hljs-number">4</span>]&lt;&lt;<span class="hljs-number">8</span>)|b[<span class="hljs-number">5</span>]);
+  gx=(<span class="hljs-keyword">int16_t</span>)((b[<span class="hljs-number">8</span>]&lt;&lt;<span class="hljs-number">8</span>)|b[<span class="hljs-number">9</span>]);
+  gy=(<span class="hljs-keyword">int16_t</span>)((b[<span class="hljs-number">10</span>]&lt;&lt;<span class="hljs-number">8</span>)|b[<span class="hljs-number">11</span>]);
+  gz=(<span class="hljs-keyword">int16_t</span>)((b[<span class="hljs-number">12</span>]&lt;&lt;<span class="hljs-number">8</span>)|b[<span class="hljs-number">13</span>]);
+}
+</div></code></pre>
+<ul>
+<li>
+<p><code>uint8_t b[14];</code><br>
+14バイト分のデータを格納するための配列を用意する。</p>
+</li>
+<li>
+<p><code>i2cBurstRead(MPU_ADDR, 0x3B, b, 14);</code><br>
+MPU9250のI2Cアドレス（0x68）の0x3B（加速度Xの上位バイト）から14バイト分のデータを一気に読み込む。<br>
+0x3B～0x48までのレジスタには、加速度・温度・ジャイロの生データが格納されている。</p>
+</li>
+<li>
+<p><code>ax=(int16_t)((b[0]&lt;&lt;8)|b[1]);</code><br>
+b[0]（加速度Xの上位バイト）とb[1]（下位バイト）を結合し、16ビットの加速度X生データにする。</p>
+</li>
+<li>
+<p><code>ay=(int16_t)((b[2]&lt;&lt;8)|b[3]);</code><br>
+b[2]（加速度Yの上位バイト）とb[3]（下位バイト）を結合し、加速度Y生データにする。</p>
+</li>
+<li>
+<p><code>az=(int16_t)((b[4]&lt;&lt;8)|b[5]);</code><br>
+b[4]（加速度Zの上位バイト）とb[5]（下位バイト）を結合し、加速度Z生データにする。</p>
+</li>
+<li>
+<p><code>gx=(int16_t)((b[8]&lt;&lt;8)|b[9]);</code><br>
+b[8]（ジャイロXの上位バイト）とb[9]（下位バイト）を結合し、ジャイロX生データにする。</p>
+</li>
+<li>
+<p><code>gy=(int16_t)((b[10]&lt;&lt;8)|b[11]);</code><br>
+b[10]（ジャイロYの上位バイト）とb[11]（下位バイト）を結合し、ジャイロY生データにする。</p>
+</li>
+<li>
+<p><code>gz=(int16_t)((b[12]&lt;&lt;8)|b[13]);</code><br>
+b[12]（ジャイロZの上位バイト）とb[13]（下位バイト）を結合し、ジャイロZ生データにする。</p>
+</li>
+</ul>
+<p>この関数は、MPU9250から加速度（X,Y,Z）とジャイロ（X,Y,Z）の生データを一度に取得し、各変数に格納する役割を持つ。</p>
+<p>生データとは、センサが直接出力する**変換前の値（デジタルカウント値、LSB値）**のこと
+例えば加速度センサなら、実際の加速度（m/s²やG）ではなく、ADC（A/D変換器）が変換した整数値（例：16384など）が生データ</p>
+</details>
+<h2 id="%E3%82%B8%E3%83%A3%E3%82%A4%E3%83%AD%E9%9D%99%E6%AD%A2%E3%83%90%E3%82%A4%E3%82%A2%E3%82%B9%E6%8E%A8%E5%AE%9A">ジャイロ静止バイアス推定</h2>
+<p>ジャイロセンサは静止していてもわずかな誤差を出力する
+<br>そのため、電源投入時にセンサを静止させた状態で平均を取り、オフセット値を求める</br></p>
+<h3 id="%E6%89%8B%E9%A0%86">手順</h3>
+<ul>
+<li>一秒間ループで200回情報を取る</li>
+<li>各軸のジャイロ値を加算し、平均を取る</li>
+<li>平均値をGYRO_LSB_PER_DPSで割り角速度に換算</li>
+<li>得られた値をgyroBiasX,Y,Zに格納</li>
+</ul>
+<p>以降の角速度計算ではこのオフセット値を引き算して補正する</p>
+<h2 id="lis3mdl%E5%9C%B0%E7%A3%81%E6%B0%97%E3%82%BB%E3%83%B3%E3%82%B5%E5%88%9D%E6%9C%9F%E5%8C%96%E3%81%A8%E8%AA%AD%E3%81%BF%E5%8F%96%E3%82%8A">LIS3MDL(地磁気センサ)初期化と読み取り</h2>
+<ul>
+<li>
+<p>LIS3MDL センサ設定まとめ</p>
+<p>WHO_AM_I レジスタ</p>
+<ul>
+<li>アドレス: 0x0F</li>
+<li>読み出し値: 0x3D → デバイス確認用</li>
+<li>これが一致すれば LIS3MDL が正しく接続されている</li>
+<li>i2cRead8(LIS3MDL_ADDR, 0x0F); // 期待値: 0x3D</li>
+</ul>
+<p>出力データレート (ODR: Output Data Rate)</p>
+<ul>
+<li>レジスタ: 0x20</li>
+<li>設定値: 0x70</li>
+<li>意味: 80Hz でサンプリング、XY軸 Ultra High Performance</li>
+<li>i2cWrite8(LIS3MDL_ADDR, 0x20, 0x70);</li>
+</ul>
+<p>ガウスレンジ設定 (磁場測定範囲)</p>
+<ul>
+<li>レジスタ: 0x21</li>
+<li>設定値: 0x00</li>
+<li>意味: ±4 gauss (最も分解能が高い範囲)</li>
+<li>i2cWrite8(LIS3MDL_ADDR, 0x21, 0x00);</li>
+</ul>
+<p>他の選択肢:</p>
+<ul>
+<li>0x20 → ±8 gauss</li>
+<li>0x40 → ±12 gauss</li>
+<li>0x60 → ±16 gauss</li>
+</ul>
+<p>動作モード (0x22)</p>
+<ul>
+<li>設定値: 0x00</li>
+<li>意味: Continuous-conversion mode (連続測定モード)</li>
+<li>→ 常に新しいデータを測定し続ける</li>
+<li>i2cWrite8(LIS3MDL_ADDR, 0x22, 0x00);</li>
+</ul>
+<p>他の選択肢:</p>
+<ul>
+<li>0x01 → Single-conversion mode</li>
+<li>0x02 → Power-down mode</li>
+</ul>
+<p>Z軸の動作モード (0x23)</p>
+<ul>
+<li>設定値: 0x0C</li>
+<li>意味: Z軸 Ultra High Performance (高精度モード)</li>
+<li>i2cWrite8(LIS3MDL_ADDR, 0x23, 0x0C);</li>
+</ul>
+</li>
+<li>
+<p>lis3mdl_read_xyz
+0x28から6バイト（X, Y, Z各16ビット）を一括読み出し</p>
+<p>地磁気の生データを取得（補正は別途必要）</p>
+<p>生データはオフセットやスケール誤差があるため、キャリブレーション必須</p>
+<p>最終的には加速度計と組み合わせて傾き補正し、「正しい北方向（ヨー角）」を求める</p>
+</li>
+</ul>
+<h2 id="lps331%E6%B0%97%E5%9C%A7%E3%82%BB%E3%83%B3%E3%82%B5%E5%88%9D%E6%9C%9F%E5%8C%96%E3%81%A8%E8%AA%AD%E3%81%BF%E5%8F%96%E3%82%8A">LPS331(気圧センサ)初期化と読み取り</h2>
+<ul>
+<li>
+<p>lps331_init</p>
+<p>初期化</p>
+</li>
+<li>
+<p>lps331_read</p>
+<p>圧力を読み取り4096で割るとhpa単位になる</p>
+<p>42.5度を基準に補正値を足して温度を計算している</p>
+</li>
+</ul>
+<details>
+<summary>注意点</summary>
+<ul>
+<li>圧力から高度は「国際標準大気式」を用いて変換可能</li>
+<li>気象条件に依存するのであくまで目安の高度</li>
+</ul>
+</details>
+
+</body>
+</html>

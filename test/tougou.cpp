@@ -30,7 +30,7 @@ Madgwick MadgwickFilter;
 const float ACC_LSB_PER_G    = 16384.0f; // ±2g
 const float GYRO_LSB_PER_DPS = 131.0f;   // ±250 dps
 
-// ---------- ループ制御 ----------
+// --------- ループ制御 ----------
 const float UPDATE_HZ = 100.0f;
 const uint32_t UPDATE_US = (uint32_t)(1e6f / UPDATE_HZ);
 const int PRINT_DIV = 50;               //  100Hz×200 = 2秒ごと（0.5Hz表示）
@@ -145,13 +145,17 @@ void pollGPS(){
 int lookupAngle(float l, float thetaDeg){
   float th = fabsf(thetaDeg);
   bool far = (l >= 30.0f);
-  if (th < 60.0f)   return far ? 125 : 110;
-  if (th < 120.0f)  return far ?  65 :  50;
-  return far ? 30 : 0;
+  
+  if (th < 60.0f) {
+    return far ? 15 : 30;
+  } else if (th < 120.0f) {
+    return far ? 75 : 90;
+  } else {
+    return far ? 110 : 140;
+  }
 }
 
-// 品質/安全ゲート（今回の条件では 1.0 = 弱め無し）
-// HDOP, SATS, AMAG, ALT, VZ は実際の値を使用
+// 品質/安全ゲート
 float calcGain(float hdop, int sats, float amag, float alt, float vz){
   float g = 1.0f;
   if (!(hdop <= 2.0f && sats >= 8)) g *= 0.7f;  // 品質悪なら弱め
@@ -215,7 +219,6 @@ void loop(){
   // ---- モーター制御ロジック ----
   if (gpsUpdated && currentLat != 0 && currentLng != 0) { // GPSデータが更新され、かつ有効な場合
     // 飛行移動ベクトル ∆A を計算
-    // TinyGPS++の距離計算関数を使用
     double deltaLat = currentLat - prevLat;
     double deltaLng = currentLng - prevLng;
     float distMoved = gps.distanceBetween(currentLat, currentLng, prevLat, prevLng);
@@ -231,37 +234,30 @@ void loop(){
     if (thetaDeg > 180) thetaDeg -= 360;
     if (thetaDeg < -180) thetaDeg += 360;
 
-    // 姿勢角による傾斜補正 (今回はMadgwickのyawを使用するが、より厳密な補正は別途検討)
-    // yaw値が機体の進行方向と一致するように調整が必要
-    float currentYaw = MadgwickFilter.getYaw(); // 現在のヨー角
-
-    // 仮の垂直速度 (VZ) はGPSの高度変化から計算することも可能だが、今回は固定値や推定値を使用
-    // LPS331の気圧変化から高度変化を推定し、そこからVZを計算することもできる
-    // ここでは簡易的に0とするか、前の高度との差分から計算
+    // 垂直速度の計算
     static float prevAltForVz = currentAlt;
-    float vz = (currentAlt - prevAltForVz) / (UPDATE_US / 1e6f); // 簡易的な垂直速度
+    float vz = (currentAlt - prevAltForVz) / (UPDATE_US / 1e6f);
     prevAltForVz = currentAlt;
 
     // サーボモーターの回転角を決定
-    const int   baseAngle = lookupAngle(distToTarget, thetaDeg);
-    const float gain      = calcGain(gps.hdop.hdop(), gps.satellites.value(), sqrtf(ax*ax+ay*ay+az*az), currentAlt, vz);
+    const int deltaAngle = lookupAngle(distToTarget, thetaDeg);
+    const float gain = calcGain(gps.hdop.hdop(), gps.satellites.value(), 
+                               sqrtf(ax*ax+ay*ay+az*az), currentAlt, vz);
 
-    // 左と右のサーボ角度を計算 (今回は右旋回を想定)
-    // thetaDegが正なら右、負なら左に曲がるとして調整
     int angleL = NEUTRAL;
     int angleR = NEUTRAL;
 
-    // 目標角度 thetaDeg に応じてサーボを操作
-    // 例えば、右に曲がりたいなら右サーボの角度を小さく（引く）、左に曲がりたいなら左サーボを小さくする
-    // フローチャートでは theta>0 で右サーボを回転させているので、それに従う
+    // 目標角度 θ に応じてサーボを操作
     if (thetaDeg > 0) { // 右に旋回
-        angleR = NEUTRAL - int(baseAngle * gain); // NEUTRALから引くことで角度が小さくなる
-        angleL = NEUTRAL; // 左は中立
-    } else { // 左に旋回 (この実装では右旋回のみを考慮しているため、今回は例として右側に曲がる挙動)
-        // 必要に応じて左旋回のロジックを追加
-        // angleL = NEUTRAL + int(baseAngle * gain); // 例: 左側に曲がる場合
-        angleR = NEUTRAL; // 今回は右旋回のみを考慮するため中立
-        angleL = NEUTRAL; // 今回は右旋回のみを考慮するため中立
+      angleR = NEUTRAL - (int)(deltaAngle * gain);
+      angleL = NEUTRAL;
+    } else if (thetaDeg < 0) { // 左に旋回
+      angleL = NEUTRAL + (int)(deltaAngle * gain);
+      angleR = NEUTRAL;
+    } else {
+      // 直進の場合（両方中立）
+      angleL = NEUTRAL;
+      angleR = NEUTRAL;
     }
     
     // 角度が範囲外にならないようにクランプ
@@ -270,8 +266,9 @@ void loop(){
 
     servoL.write(angleL);
     servoR.write(angleR);
+    
+    gpsUpdated = false; // 制御後にフラグをリセット
   }
-
 
   // ---- 表示（2秒ごと）----
   if((++pc % PRINT_DIV)==0){
@@ -303,7 +300,6 @@ void loop(){
       Serial.print(F(" 衛星数: ")); Serial.print(gps.satellites.value());
       Serial.print(F(" 目標まで: ")); Serial.print(gps.distanceBetween(currentLat, currentLng, targetLat, targetLng), 1); Serial.print(F(" m"));
       Serial.print(F(" 目標角度: ")); Serial.print(gps.courseTo(currentLat, currentLng, targetLat, targetLng), 1); Serial.println(F(" deg"));
-      //gpsUpdated = false; // 表示後にリセット (次のデータまで更新しない)
     } else {
       Serial.println(F("【GPS】 受信待ち…"));
     }
