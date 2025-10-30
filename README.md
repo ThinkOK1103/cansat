@@ -1,5 +1,5 @@
 git hubをwebで開く: https://github.com/
-sign up で自分の名前とメールアドレスを入力
+<br> sign up で自分の名前とメールアドレスを入力 </br>
 
 git bashをダウンロードする
 ダウンロード先: https://git-scm.com/install/windows
