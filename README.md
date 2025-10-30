@@ -13,9 +13,9 @@ git config --global user.email "ここにsign upで登録したメールアド�
 SSHkeyの作成
 <br>ls ~/.ssh //上書を防ぐために確認</br>
 ssh-keygen -C "メールアドレス"
-<br>保存先にこだわりがなければENTERを押下</br>
-<br>パスワードの作成　いらなければENTER</br>
-<br>ls ~/.ssh //再び確認</br>
+保存先にこだわりがなければENTERを押下
+パスワードの作成　いらなければENTER
+ls ~/.ssh //再び確認
 
 git hubをwebで開き、右上にある自分のアイコンをクリックしSettingsを開く
 <br>SSH and GPG keysを押下</br>
