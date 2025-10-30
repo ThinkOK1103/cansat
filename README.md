@@ -8,11 +8,11 @@ git bashをダウンロードする
 
 環境構築
 <br>git config --global user.name "ここにsign upで登録した名前"</br>
-<br>git config --global user.email "ここにsign upで登録したメールアドレス"</br>
+git config --global user.email "ここにsign upで登録したメールアドレス"
 
 SSHkeyの作成
 <br>ls ~/.ssh //上書を防ぐために確認</br>
-<br>ssh-keygen -C "メールアドレス"</br>
+ssh-keygen -C "メールアドレス"
 <br>保存先にこだわりがなければENTERを押下</br>
 <br>パスワードの作成　いらなければENTER</br>
 <br>ls ~/.ssh //再び確認</br>
