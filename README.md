@@ -22,7 +22,7 @@ SSH and GPG keysを押下
 New SSH keyを押下し、ls ~/.sshで出たid_rsa.pubをkeyにコピーアンドペースト　titleは適当に
 
 cansatリポジトリをダウンロード
-git clone 
+git clone git@github.com:ThinkOK1103/cansat.git
 
 変更の追加の仕方
 git pull origin main //更新されていたら
