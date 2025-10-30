@@ -6,11 +6,11 @@ git bashをダウンロードする
 
 以下、git bash上で行う
 
-~環境構築~
+環境構築
 git config --global user.name "ここにsign upで登録した名前"
 git config --global user.email "ここにsign upで登録したメールアドレス"
 
-~SSHkeyの作成~
+SSHkeyの作成
 ls ~/.ssh //上書を防ぐために確認
 ssh-keygen -C "メールアドレス"
 保存先にこだわりがなければENTERを押下
@@ -21,10 +21,10 @@ git hubをwebで開き、右上にある自分のアイコンをクリックしS
 SSH and GPG keysを押下
 New SSH keyを押下し、ls ~/.sshで出たid_rsa.pubをkeyにコピーアンドペースト　titleは適当に
 
-~cansatリポジトリをダウンロード~
+cansatリポジトリをダウンロード
 git clone 
 
-~変更の追加の仕方~
+変更の追加の仕方
 git pull origin main //更新されていたら
 git add . //ステージング
 git commit -m "hoge" //"何かコメントをする"　　ローカルリポジトリへ
