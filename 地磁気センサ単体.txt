@@ -1,0 +1,116 @@
+//地磁気センサ（LIS3MDL）単体動作プログラム【修正案】
+#include <Wire.h>  //I2C通信を行うためのライブラリ
+#include <math.h>  //数学関数を使うためのライブラリ
+
+// LIS3MDLのI2Cアドレス
+#define LIS3MDL_ADDR 0x1E
+
+// LIS3MDL レジスタアドレス
+#define LIS3MDL_WHO_AM_I  0x0F
+#define LIS3MDL_CTRL_REG1 0x20
+#define LIS3MDL_CTRL_REG2 0x21
+#define LIS3MDL_CTRL_REG3 0x22
+#define LIS3MDL_CTRL_REG4 0x23
+#define LIS3MDL_OUT_X_L   0x28
+
+void setup() {
+  Serial.begin(9600);
+  while (!Serial); // シリアルポートが開くのを待つ
+
+  Wire.begin();
+
+  // センサーのWHO_AM_Iレジスタをチェックして通信を確認
+  Wire.beginTransmission(LIS3MDL_ADDR);
+  Wire.write(LIS3MDL_WHO_AM_I);
+  Wire.endTransmission();
+  Wire.requestFrom(LIS3MDL_ADDR, 1);
+  if (Wire.read() != 0x3D) {
+    Serial.println("LIS3MDL not found");
+    while (1);
+  }
+  Serial.println("LIS3MDL found!");
+
+  // CTRL_REG1: XY軸ウルトラハイパフォーマンスモード, データレート80Hz
+  Wire.beginTransmission(LIS3MDL_ADDR);
+  Wire.write(LIS3MDL_CTRL_REG1);
+  Wire.write(0b01110000);
+  Wire.endTransmission();
+
+  // CTRL_REG2: フルスケール ±4 gauss
+  Wire.beginTransmission(LIS3MDL_ADDR);
+  Wire.write(LIS3MDL_CTRL_REG2);
+  Wire.write(0b00000000);
+  Wire.endTransmission();
+
+  // CTRL_REG3: 連続測定モードを有効化
+  Wire.beginTransmission(LIS3MDL_ADDR);
+  Wire.write(LIS3MDL_CTRL_REG3);
+  Wire.write(0x00);
+  Wire.endTransmission();
+
+  // CTRL_REG4: Z軸ウルトラハイパフォーマンスモード
+  Wire.beginTransmission(LIS3MDL_ADDR);
+  Wire.write(LIS3MDL_CTRL_REG4);
+  Wire.write(0b00001100);
+  Wire.endTransmission();
+
+  delay(100); // 設定が安定するまで待つ
+}
+
+void loop() {
+  // 各軸の値を一度だけ読み出して変数に格納する
+  int16_t x = read_x();
+  int16_t y = read_y();
+  int16_t z = read_z();
+
+  // シリアルモニタにデータを出力
+  Serial.print(x); Serial.print(",");
+  Serial.print(y); Serial.print(",");
+  Serial.println(z);
+
+  // 方位の計算（オフセット値は環境に応じて調整してください）
+  double houi;
+  // オフセット値を引く
+  double offsetX = x - 53.5;
+  double offsetY = y - 677.0;
+
+  houi = ((PI / 2) - atan2(offsetY, offsetX)) * (180 / PI);
+  if (houi < 0) {
+    houi += 360;
+  }
+  //Serial.print("Houi: ");
+  //Serial.println(houi);
+
+  delay(100);
+}
+
+// 2バイトのレジスタ値を読み取る関数
+int16_t mag_read_value(uint8_t reg_lsb) {
+  uint8_t lsb, msb;
+
+  Wire.beginTransmission(LIS3MDL_ADDR);
+  Wire.write(reg_lsb);
+  Wire.endTransmission();
+  Wire.requestFrom(LIS3MDL_ADDR, 1);
+  lsb = Wire.read();
+
+  Wire.beginTransmission(LIS3MDL_ADDR);
+  Wire.write(reg_lsb + 1); // MSBレジスタ
+  Wire.endTransmission();
+  Wire.requestFrom(LIS3MDL_ADDR, 1);
+  msb = Wire.read();
+
+  return (int16_t)((msb << 8) | lsb);
+}
+
+int16_t read_x(void) {
+  return mag_read_value(LIS3MDL_OUT_X_L);
+}
+
+int16_t read_y(void) {
+  return mag_read_value(LIS3MDL_OUT_X_L + 2);
+}
+
+int16_t read_z(void) {
+  return mag_read_value(LIS3MDL_OUT_X_L + 4);
+}

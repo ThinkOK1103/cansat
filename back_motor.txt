@@ -1,0 +1,136 @@
+#include <Wire.h>
+#include <math.h>
+#include <Servo.h>
+#include <LIS3MDL.h>
+#include <LPS.h>
+#include <TinyGPS++.h>
+#include <SoftwareSerial.h>
+#include "MadgwickAHRS.h"
+
+// --------- 遠隔用モーター ----------
+// モータードライバ(TB6612FN)のピン設定
+#define STBY_PIN   8
+
+// モーターA (左モーター)
+#define PWMA_PIN   9  // PWM (速度)
+#define AIN1_PIN   10 // forward or back
+#define AIN2_PIN   11 // forward or back
+
+// モーターB (右モーター)
+#define PWMB_PIN   5  // PWM (速度)
+#define BIN1_PIN   6  // forward or back
+#define BIN2_PIN   7  // forward or back
+
+// --------- 制御用変数 ----------
+unsigned long prevMillis = 0;
+const unsigned long interval = 1000; // 1秒ごとに出力
+String control_log = "no action";
+unsigned long nexttime = 0;
+const int moterSpeed = 150; //モーターの速度0-255まで
+
+// --------- 初期化処理 ----------
+void setup() {
+  Serial.begin(115200);
+  Wire.begin();
+
+  pinMode(STBY_PIN, OUTPUT);
+  pinMode(PWMA_PIN, OUTPUT);
+  pinMode(AIN1_PIN, OUTPUT);
+  pinMode(AIN2_PIN, OUTPUT);
+  pinMode(PWMB_PIN, OUTPUT);
+  pinMode(BIN1_PIN, OUTPUT);
+  pinMode(BIN2_PIN, OUTPUT);
+  
+  digitalWrite(STBY_PIN, HIGH);
+  stopMotors(); // 初期は停止
+
+  Serial.println("===== システム起動 =====");
+}
+
+// --------- メインループ ----------
+void loop() {
+  while(millis() < nexttime) {}
+  if(xbeeSerial.abailable()){
+    char command = xbeeSerial.read();
+  }
+  ControlMoter(command);
+
+  nexttime = millis() + 100;
+}
+//モータ制御
+void ControlMoter(char command){
+  if(xbeeSerial.available()){
+    char Command = command; // コマンドを読み込む
+    Serial.print("受信コマンド:");
+    Serial.print(Command);
+
+    switch(Command){
+      case 'W':
+        moveForward();
+        break;
+      case 'A':
+        turnLeft();
+        break;
+      case 'D':
+        turnRight();
+        break;
+      case 'S':
+        stopMotors();
+        break;
+      default:
+        stopMotors();
+        break;
+    }
+  }
+}
+//モータ制御関数
+void moveForward() {
+  // 左モーター前進
+  digitalWrite(AIN1_PIN, HIGH);
+  digitalWrite(AIN2_PIN, LOW);
+  analogWrite(PWMA_PIN, motorSpeed);
+
+  // 右モーター前進
+  digitalWrite(BIN1_PIN, HIGH);
+  digitalWrite(BIN2_PIN, LOW);
+  analogWrite(PWMB_PIN, motorSpeed);
+  Serial.println("前進");
+}
+
+void turnLeft() {
+  // 左モーター停止 (または逆転でより急旋回も可)
+  digitalWrite(AIN1_PIN, LOW);
+  digitalWrite(AIN2_PIN, LOW);
+  analogWrite(PWMA_PIN, 0); // 完全に停止
+
+  // 右モーター前進
+  digitalWrite(BIN1_PIN, HIGH);
+  digitalWrite(BIN2_PIN, LOW);
+  analogWrite(PWMB_PIN, motorSpeed);
+  Serial.println("左回転");
+}
+
+void turnRight() {
+  // 左モーター前進
+  digitalWrite(AIN1_PIN, HIGH);
+  digitalWrite(AIN2_PIN, LOW);
+  analogWrite(PWMA_PIN, motorSpeed);
+
+  // 右モーター停止 (または逆転でより急旋回も可)
+  digitalWrite(BIN1_PIN, LOW);
+  digitalWrite(BIN2_PIN, LOW);
+  analogWrite(PWMB_PIN, 0); // 完全に停止
+  Serial.println("右回転");
+}
+
+void stopMotors() {
+  // 両方のモーターを停止
+  digitalWrite(AIN1_PIN, LOW);
+  digitalWrite(AIN2_PIN, LOW);
+  analogWrite(PWMA_PIN, 0);
+
+  digitalWrite(BIN1_PIN, LOW);
+  digitalWrite(BIN2_PIN, LOW);
+  analogWrite(PWMB_PIN, 0);
+  Serial.println("停止");
+}
