@@ -1,0 +1,467 @@
+// MPU9265 + AE-GPS + LIS3MDL + LPS + サーボ制御 + 姿勢角(Madgwick)
+// 目的: パラフォイルを制御し、目標地点に誘導
+// 修正点: GPSが未取得の時はサーボをニュートラルに固定しつつ、他センサの値は表示
+#include <Wire.h>
+#include <math.h>
+#include <Servo.h>
+#include <LIS3MDL.h>
+#include <LPS.h>
+#include <TinyGPS++.h>
+#include <SoftwareSerial.h>
+#include "MadgwickAHRS.h"
+
+// --------- GPS設定 (AE-GPS: UART接続) ----------
+TinyGPSPlus gps;
+SoftwareSerial gpsSerial(4, 3); // GPS TX → D4, GPS RX → D3
+
+// --------- サーボ ----------
+Servo myservo, myservo2; //右、左
+
+// --------- 磁気センサ ----------
+LIS3MDL LIS;
+
+// --------- 気圧センサ ----------
+LPS ps;
+
+// --------- MPU9265 I2Cアドレス ----------
+#define MPU9250_ADDR 0x68
+
+// --------- センサ値格納用 ----------
+float AcX, AcY, AcZ;
+float GyX, GyY, GyZ;
+float MagX, MagY, MagZ;
+
+// --------- 姿勢推定フィルタ ----------
+Madgwick filter;
+float roll, pitch, yaw;
+
+// --------- 制御用変数 ----------
+double gps_theta = 0, mag_theta = 0, theta = 0, distance = 0;
+float hight_b = 0, hight_a = 0;
+float dlat = 0, dlng = 0;
+float outer = 0;
+unsigned long prevMillis = 0;
+const unsigned long interval = 100; // 0.1秒ごとに出力
+String control_log = "no action";
+unsigned long previousMillis = 0;
+
+// 目標地点
+double lat1 = 35.138798; //目標緯度(仮)
+double long1 = 136.966386; //目標経度(仮)
+
+// --------- MPU9265初期化 ----------
+void initMPU9265() {
+  Wire.beginTransmission(MPU9250_ADDR);
+  Wire.write(0x6B); // PWR_MGMT_1
+  Wire.write(0x00); // 起動
+  Wire.endTransmission(true);
+  delay(100);
+}
+
+// --------- MPU9265読み取り ----------
+void readMPU9265() {
+  Wire.beginTransmission(MPU9250_ADDR);
+  Wire.write(0x3B);
+  Wire.endTransmission(false);
+  Wire.requestFrom(MPU9250_ADDR, 14, true);
+
+  int16_t rawAcX = (Wire.read() << 8) | Wire.read();
+  int16_t rawAcY = (Wire.read() << 8) | Wire.read();
+  int16_t rawAcZ = (Wire.read() << 8) | Wire.read();
+  Wire.read(); Wire.read(); // 温度は未使用
+  int16_t rawGyX = (Wire.read() << 8) | Wire.read();
+  int16_t rawGyY = (Wire.read() << 8) | Wire.read();
+  int16_t rawGyZ = (Wire.read() << 8) | Wire.read();
+
+  // ±2g, ±250dps換算
+  AcX = rawAcX / 16384.0;
+  AcY = rawAcY / 16384.0;
+  AcZ = rawAcZ / 16384.0;
+
+  GyX = rawGyX / 131.0;
+  GyY = rawGyY / 131.0;
+  GyZ = rawGyZ / 131.0;
+}
+
+// --------- 初期化処理 ----------
+void setup() {
+  Serial.begin(9600);
+  Wire.begin();
+  gpsSerial.begin(9600);
+
+  myservo.attach(11);
+  myservo2.attach(10);
+
+  // 磁気センサ
+  if (!LIS.init()) {
+    Serial.println("Failed to detect magnetometer!");
+    while (1);
+  }
+  LIS.enableDefault();
+
+  // 気圧センサ
+  if (!ps.init()) {
+    Serial.println("Failed to detect pressure sensor!");
+    while (1);
+  }
+  ps.enableDefault();
+
+  // MPU9265
+  initMPU9265();
+
+  // Madgwickフィルタ初期化
+  filter.begin(100); // 推定周波数 100Hz
+
+  myservo.write(140);
+  myservo2.write(140);
+
+  Serial.println("===== システム起動 =====");
+}
+
+// --------- メインループ ----------
+void loop() {
+  LIS.read();
+  // GPSデータ受信
+  while (gpsSerial.available() > 0) {
+    gps.encode(gpsSerial.read());
+  }
+
+  unsigned long currentMillis = millis();
+  if (currentMillis - prevMillis >= interval) {
+    prevMillis = currentMillis;
+    displayInfo();
+  }
+
+}
+
+// --------- 情報出力 ----------
+void displayInfo() {
+  control_log = "no action"; // デフォルト
+
+  Serial.println("ーーーーーーーーーーーーーーーーーーーー");
+
+  // ---- GPS位置 ----
+  double lat_target = lat1;
+  double long_target = long1;
+
+  if (gps.location.isValid()) {
+    double gps_lat = gps.location.lat();
+    double gps_lng = gps.location.lng();
+
+    Serial.print("目標緯度: "); Serial.println(lat_target, 6);
+    Serial.print("目標経度: "); Serial.println(long_target, 6);
+    Serial.print("現在緯度: "); Serial.println(gps_lat, 6);
+    Serial.print("現在経度: "); Serial.println(gps_lng, 6);
+
+    double distance_y = abs((gps_lat - lat_target)* 111320);
+    double distance_x = abs((gps_lng - long_target)* 111320*cos(lat_target*(PI/180.0)));
+    distance = sqrt(pow(distance_y, 2) + pow(distance_x, 2));
+    Serial.print("直線距離: "); Serial.println(distance, 6);
+
+    static double prevLat = gps_lat;
+    static double prevLng = gps_lng;
+
+    double headingToTarget = gps.courseTo(gps_lat, gps_lng, lat_target, long_target);
+    double headingMoved    = gps.courseTo(prevLat, prevLng, gps_lat, gps_lng);
+
+    theta = headingToTarget - headingMoved;
+    if (theta > 180) theta -= 360;
+    if (theta < -180) theta += 360;
+    
+    outer = theta; // 今回は単純化して外側判定用に代入
+    theta = fabs(theta); // 角度は正の値に変換
+
+    prevLat = gps_lat; // 次回比較用に保存
+    prevLng = gps_lng;
+
+
+    dlat = (lat_target-gps_lat)*(180/PI);
+    dlng = (long_target-gps_lng)*(180/PI);
+
+    // ---- ここでサーボ制御処理を実行 ----
+    //myservo・・・右　myservo2・・・左 デフォルトで左右とも90°の位置
+
+  if ((outer < 0) && (theta > 0) && (theta <= 60)) {//時計回りに旋回させるとき
+    if(distance < 30) {//近い時
+      Serial.print("30°時計回り:right");
+      /*for (int i=0; i<3; ++i){
+        myservo.write(110);
+        myservo2.write(40);
+
+        delay(500);
+        myservo.write(140);
+        delay(500);
+      }*/         
+
+      myservo.write(80);
+      myservo2.write(40);
+
+      //delay(500);
+      myservo.write(140);
+      //delay(500);  
+    } else {//遠い時
+      Serial.print("15°時計回り:right");
+      /*for (int i=0; i<3; ++i){
+        myservo.write(125);
+        myservo2.write(40);
+
+        delay(500);
+        myservo.write(40);
+        delay(500);
+      }*/           
+      myservo.write(110);
+      myservo2.write(40);
+
+      //delay(500);
+      myservo.write(140);
+      //delay(500);
+    }
+
+  }
+  else if ((outer > 0) && (theta > 0) && (theta <= 60)) {//反時計回りに旋回させるとき
+    if(distance < 30) {//近い時
+      Serial.print("30°反時計回り:left");
+      /*for (int i=0; i<3; ++i){
+        myservo.write(140);
+        myservo2.write(70);
+
+        delay(500);
+        myservo2.write(40);
+        delay(500);
+      }*/
+      myservo.write(140);
+      myservo2.write(100);
+
+      //delay(500);
+      myservo2.write(40);
+      //delay(500);      
+    } else {
+      Serial.print("15°反時計回り:left");
+      /*for (int i=0; i<3; ++i){
+        myservo.write(140);
+        myservo2.write(55);
+
+        delay(500);
+        myservo2.write(40);
+        delay(500);
+      }*/
+      myservo.write(140);
+      myservo2.write(70);
+
+      //delay(500);
+      myservo2.write(40);
+      //delay(500);
+    }
+    
+  } else if ((outer < 0) && (theta > 60) && (theta <= 120)) {
+    if(distance < 30) {//近い時
+      Serial.print("90°時計回り:right");
+      /*for (int i=0; i<3; ++i){
+        myservo.write(80);
+        myservo2.write(40);
+
+        delay(500);
+        myservo.write(140);
+        delay(500);
+      }*/
+      myservo.write(30);
+      myservo2.write(40);
+
+      //delay(500);
+      myservo.write(140);
+      //delay(500);
+    } else {//遠い時
+      Serial.print("30°時計回り:right");
+      /*for (int i=0; i<3; ++i){
+        myservo.write(95);
+        myservo2.write(40);
+
+        delay(500);
+        myservo.write(140);
+        delay(500);
+      }*/
+      myservo.write(80);
+      myservo2.write(40);
+
+      //delay(500);
+      myservo.write(140);
+      //delay(500);      
+    }
+    
+  }
+  else if ((outer > 0) && (theta > 60) && (theta <= 120)) {
+    if(distance < 30) {//近い時
+      Serial.print("90°反時計回り:left");
+      /*for (int i=0; i<3; ++i){
+        myservo.write(140);
+        myservo2.write(130);
+
+        delay(500);
+        myservo2.write(40);
+        delay(500);
+      }*/
+      myservo.write(140);
+      myservo2.write(150);
+
+      //delay(500);
+      myservo2.write(40);
+      //delay(500);      
+  
+    } else {
+      Serial.print("30°反時計回り:left");
+      /*for (int i=0; i<3; ++i){
+        myservo.write(140);
+        myservo2.write(115);
+
+        delay(500);
+        myservo2.write(40);
+        delay(500);
+      }*/
+      myservo.write(140);
+      myservo2.write(100);
+
+      //delay(500);
+      myservo2.write(40);
+      //delay(500);      
+      
+    }
+          
+  }
+  else if ((outer < 0) && (theta > 120) && (theta <= 180)) {
+    if(distance < 30) {//近い時
+    Serial.print("150°時計回り:right");
+    /*for (int i=0; i<3; ++i){
+        myservo.write(0);
+        myservo2.write(40);
+
+        delay(800);
+        myservo.write(140);
+        delay(800);
+      }*/
+      myservo.write(0);
+      myservo2.write(40);
+
+      //delay(800);
+      myservo.write(140);
+      //delay(800);      
+    } else {
+      Serial.print("135°時計回り:right");
+      /*for (int i=0; i<3; ++i){
+        myservo.write(30);
+        myservo2.write(40);
+
+        delay(800);
+        myservo.write(140);
+        delay(800);
+      }*/
+      myservo.write(15);
+      myservo2.write(40);
+
+      //delay(800);
+      myservo.write(140);
+      //delay(800);
+  
+    }
+          
+  }
+  else if ((outer > 0) && (theta > 120) && (theta <= 180)){
+      if(distance < 30) {//近い時
+      Serial.print("150°反時計回り:left");
+      /*for (int i=0; i<3; ++i){
+        myservo.write(140);
+        myservo2.write(180);
+
+        delay(800);
+        myservo2.write(40);
+        delay(800);
+      }*/
+      myservo.write(140);
+      myservo2.write(180);
+
+      //delay(800);
+      myservo2.write(40);
+      //delay(800);
+      
+    } else {
+      Serial.print("135°反時計回り:left");
+      /*for (int i=0; i<3; ++i){
+        myservo.write(140);
+        myservo2.write(150);
+
+        delay(800);
+        myservo2.write(40);
+        delay(800);
+      }*/
+      myservo.write(140);
+      myservo2.write(165);
+
+      //delay(800);
+      myservo2.write(40);
+      //delay(800);
+  
+    }
+  }else if(theta == 0){myservo.write(90); myservo2.write(90);}
+  //サーボモータの角度を表示
+  /*Serial.println(myservo.read());
+  Serial.println(myservo2.read());*/
+  }else{
+    Serial.println("GPS未取得 → サーボ静止");
+    dlat = 0;
+    dlng = 0;
+    distance = 0;
+    theta = 0;
+    outer = 0;
+    // サーボを強制的にニュートラル固定
+    myservo.write(140);
+    myservo2.write(140);
+    control_log = "GPS lost, servos neutral";
+  }
+
+  // ---- 気圧センサ ----
+  float pressure = ps.readPressureMillibars();
+  float temperature = ps.readTemperatureC();
+  double P = pow(1013.25/pressure, 1/5.257)-1;
+  double T = temperature + 273.15;
+  hight_a = ((P * T)/0.0065)-34.8;
+  Serial.print("高度: "); Serial.println(hight_a);
+
+  // ---- MPU9265 ----
+  readMPU9265();
+  Serial.print("加速度X[g]: "); Serial.println(AcX, 4);
+  Serial.print("加速度Y[g]: "); Serial.println(AcY, 4);
+  Serial.print("加速度Z[g]: "); Serial.println(AcZ, 4);
+
+  Serial.print("ジャイロX[dps]: "); Serial.println(GyX, 4);
+  Serial.print("ジャイロY[dps]: "); Serial.println(GyY, 4);
+  Serial.print("ジャイロZ[dps]: "); Serial.println(GyZ, 4);
+
+  // ---- LIS3MDL ----
+  LIS.read();
+  MagX = LIS.m.x + 1034.8;
+  MagY = LIS.m.y - 1656;
+  MagZ = LIS.m.z;
+  Serial.print("磁気X: "); Serial.println(MagX);
+  Serial.print("磁気Y: "); Serial.println(MagY);
+  Serial.print("磁気Z: "); Serial.println(MagZ);
+
+  // ---- 姿勢推定フィルタ更新 ----
+  filter.update(GyX * DEG_TO_RAD, GyY * DEG_TO_RAD, GyZ * DEG_TO_RAD,
+                AcX, AcY, AcZ,
+                MagX, MagY, MagZ);
+
+  roll  = filter.getRoll();
+  pitch = filter.getPitch();
+  yaw   = filter.getYaw();
+
+  Serial.print("Roll: "); Serial.println(roll);
+  Serial.print("Pitch: "); Serial.println(pitch);
+  Serial.print("Yaw: "); Serial.println(yaw);
+
+  // ---- 制御履歴 ----
+  Serial.print("制御履歴: ");
+  Serial.println(control_log);
+
+  Serial.println("ーーーーーーーーーーーーーーーーーーーー");
+
+  //delay(100);
+}

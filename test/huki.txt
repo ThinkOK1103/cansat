@@ -15,7 +15,7 @@
 Servo servoL,servoR;
 const int PIN_L = 9;
 const int PIN_R = 10;
-const int NEUTRAL = 90;                 // 機構の中立角
+const int NEUTRAL = 140;                 // 機構の中立角
 const int SERVO_MIN = 0, SERVO_MAX = 180;
 
 // ---------- I2Cアドレス ----------

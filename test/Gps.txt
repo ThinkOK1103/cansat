@@ -1,0 +1,105 @@
+#include<Wire.h>
+#include<math.h>
+#include<Servo.h>
+#include<LIS3MDL.h>
+#include<LPS.h>
+#include<TinyGPS++.h>
+#include<SoftwareSerial.h>
+#include "MadgwickAHRS.h"
+
+TinyGPSPlus gps;
+SoftwareSerial gpsSerial(4,3);
+
+double gps_theta = 0,mag_theta = 0,theta = 0,distance = 0;
+float hight_b = 0,hight_0 = 0;
+float dlat = 0,dlng = 0;
+float outer = 0;
+unsigned long prevMillis = 0;
+const unsigned long interval = 1000;
+String control_log = "no action";
+unsigned long nexttime = 0;  
+
+double lat1 = 35.139700;
+double long1 = 136.966293;
+
+void setup(){
+  Serial.begin(115200);
+  Wire.begin();
+  gpsSerial.begin(9600);
+}
+void loop(){
+  while(gpsSerial.available() > 0){
+    gps.encode(gpsSerial.read());
+  }
+
+  unsigned long currentMillis = millis();
+  if(currentMillis - prevMillis >= interval){
+    prevMillis = currentMillis;
+    displayInfo();
+  }
+  while(millis() < nexttime) {}
+    nexttime = millis() + 100;
+}
+void displayInfo(){
+  Serial.println("-----------------------------------");
+  double lat_target = lat1;
+  double long_target = long1;
+  
+  if(gps.location.isValid()){
+    double gps_lat = gps.location.lat();
+    double gps_lng = gps.location.lng();
+    
+    Serial.print("目標緯度: ");Serial.println(lat_target,6);
+    Serial.print("目標経度: ");Serial.println(long_target,6);
+    Serial.print("現在緯度: ");Serial.println(gps_lat,6);
+    Serial.print("現在経度: ");Serial.println(gps_lng,6);
+    
+    double distance_y = abs((gps_lat - lat_target) * 111320);
+    double distance_x = abs((gps_lng - long_target) * 111320 * cos(lat_target * (PI/180.0)));
+    distance = sqrt(pow(distance_y,2) + pow(distance_x,2));
+    Serial.print("直線距離: ");Serial.println(distance,6);
+    
+    static double prevLat = gps_lat;
+    static double prevLng = gps_lng;
+ 
+    double headingToTarget = gps.courseTo(gps_lat,gps_lng, lat_target,long_target);
+    double headingMoved = gps.courseTo(prevLat,prevLng,gps_lat,gps_lng);
+    
+    theta =headingToTarget - headingMoved;
+    if (theta > 180) theta -= 360;
+    if (theta < -180) theta += 360;
+    
+    outer = theta;
+    
+    Serial.print("headingToTarget[deg]: ");Serial.println(headingToTarget,1);
+    Serial.print("headingMoved[deg]: ");Serial.println(headingMoved,1);
+ 
+    theta = fabs(theta);
+    Serial.print("theta_signed[deg]: ");Serial.println(outer,1);
+    prevLat = gps_lat;
+    prevLng = gps_lng;
+
+    dlat = (lat_target-gps_lat)*(180/PI);
+    dlng = (long_target-gps_lng)*(180/PI);
+  }
+  if(gps.satellites.isValid()){
+    Serial.print("補捉衛星数: ");Serial.println(gps.satellites.value());
+  }
+  if(gpsSerial.available()){
+    String line = gpsSerial.readStringUntil('\n');
+    if(line.startsWith("$GPGSV") || line.startsWith("$GLGSV")){
+      Serial.println(line);
+      int index = 0,count = 0;
+      while((index = line.indexOf(',',index + 1)) != -1){
+        count++;
+        if(count % 4 == 2){
+          int nextComma = line.indexOf(',',index + 1);
+          String satNum = line.substring(index + 1,nextComma);
+          if(satNum.length() > 0){
+            Serial.print("衛星番号: G");Serial.println(satNum);
+          }
+       }
+   }
+  delay(100); // または削除
+}
+      
